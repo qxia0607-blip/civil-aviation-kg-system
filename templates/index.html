@@ -22,15 +22,6 @@
         <label class="field-label" for="questionInput">问题描述</label>
         <textarea id="questionInput" placeholder="请输入应急问题，例如：飞机客舱出现烟雾应如何处置？"></textarea>
 
-        <div class="field-label small-gap">示例问题</div>
-        <div class="examples">
-          <button class="example-chip" type="button" onclick="fillExample(this)">客舱出现烟雾应如何处置？</button>
-          <button class="example-chip" type="button" onclick="fillExample(this)">起飞阶段发动机异常如何处理？</button>
-          <button class="example-chip" type="button" onclick="fillExample(this)">乘客突发疾病如何应对？</button>
-          <button class="example-chip" type="button" onclick="fillExample(this)">起落架无法放下怎么办？</button>
-          <button class="example-chip" type="button" onclick="fillExample(this)">飞机通讯中断如何处理？</button>
-        </div>
-
         <div class="controls">
           <div class="control-card">
             <label for="topK">检索范围</label>
@@ -103,10 +94,6 @@
     let graphNodes = new vis.DataSet([]);
     let graphEdges = new vis.DataSet([]);
 
-    function fillExample(el) {
-      questionInputEl.value = el.innerText;
-    }
-
     function renderEvidences(items) {
       evidenceBoxEl.innerHTML = "";
       if (!items || items.length === 0) {
@@ -128,133 +115,48 @@
     function renderGraph(nodes, edges) {
       const container = document.getElementById("graphContainer");
 
-      const safeNodes = Array.isArray(nodes) ? nodes : [];
-      const safeEdges = Array.isArray(edges) ? edges : [];
-
       graphNodes.clear();
       graphEdges.clear();
 
       graphNodes.add(
-        safeNodes.map((node, idx) => ({
-          id: node.id || `n_${idx}`,
-          label: node.label || "未命名节点",
-          group: node.group || "default",
-          title: node.title || node.label || "未命名节点",
+        (nodes || []).map((n, i) => ({
+          id: n.id || i,
+          label: n.label || "节点",
           shape: "dot",
-          size: node.size || 18,
-          font: {
-            color: "#0f172a",
-            face: "-apple-system, BlinkMacSystemFont, Helvetica Neue, Arial",
-            size: 15
-          }
+          size: 18
         }))
       );
 
       graphEdges.add(
-        safeEdges.map((edge, idx) => ({
-          id: edge.id || `e_${idx}`,
-          from: edge.from,
-          to: edge.to,
-          label: edge.label || "",
-          arrows: "to",
-          width: 1.6,
-          smooth: { type: "dynamic" },
-          color: { color: "rgba(71, 85, 105, 0.36)", highlight: "#2563eb" },
-          font: { color: "#64748b", size: 12, align: "middle" }
+        (edges || []).map((e, i) => ({
+          id: i,
+          from: e.from,
+          to: e.to,
+          arrows: "to"
         }))
       );
 
-      const data = { nodes: graphNodes, edges: graphEdges };
-      const options = {
-        autoResize: true,
-        physics: {
-          enabled: true,
-          barnesHut: {
-            gravitationalConstant: -4800,
-            springLength: 140,
-            springConstant: 0.03,
-            damping: 0.18
-          },
-          stabilization: { iterations: 180 }
-        },
-        interaction: {
-          dragNodes: true,
-          dragView: true,
-          zoomView: true,
-          hover: true,
-          keyboard: true
-        },
-        groups: {
-          event: { color: { background: "#dbeafe", border: "#60a5fa" } },
-          step: { color: { background: "#dcfce7", border: "#4ade80" } },
-          role: { color: { background: "#fef3c7", border: "#f59e0b" } },
-          device: { color: { background: "#ede9fe", border: "#8b5cf6" } },
-          rule: { color: { background: "#ffe4e6", border: "#fb7185" } },
-          risk: { color: { background: "#fef9c3", border: "#eab308" } },
-          default: { color: { background: "#e2e8f0", border: "#94a3b8" } }
-        }
-      };
-
-      if (network) {
-        network.destroy();
-      }
-
-      network = new vis.Network(container, data, options);
-
-      network.once("stabilizationIterationsDone", () => {
-        network.fit({ animation: { duration: 400, easingFunction: "easeInOutQuad" } });
-      });
-    }
-
-    function fitGraph() {
-      if (network) network.fit({ animation: true });
-    }
-
-    function zoomIn() {
-      if (!network) return;
-      const scale = network.getScale();
-      network.moveTo({ scale: scale * 1.15, animation: true });
-    }
-
-    function zoomOut() {
-      if (!network) return;
-      const scale = network.getScale();
-      network.moveTo({ scale: scale * 0.85, animation: true });
+      if (network) network.destroy();
+      network = new vis.Network(container, { nodes: graphNodes, edges: graphEdges }, {});
     }
 
     function mapTermsToText(value) {
       if (!value) return "暂无";
-      if (Array.isArray(value)) return value.length ? value.join("、") : "暂无";
-      if (typeof value === "object") {
-        const arr = Object.values(value).flat().filter(Boolean);
-        return arr.length ? arr.join("、") : "暂无";
-      }
+      if (Array.isArray(value)) return value.join("、");
       return String(value);
     }
 
     runBtn.addEventListener("click", async () => {
       const question = questionInputEl.value.trim();
-      const top_k = Number(topKEl.value || 10);
-      const final_n = Number(finalNEl.value || 3);
+      const top_k = Number(topKEl.value);
+      const final_n = Number(finalNEl.value);
 
       if (!question) {
-        alert("请先输入问题");
+        alert("请输入问题");
         return;
       }
 
-      if (final_n > top_k) {
-        alert("输出条数不能大于检索范围");
-        return;
-      }
-
-      runBtn.disabled = true;
-      runBtn.textContent = "分析中...";
-      answerBoxEl.textContent = "正在分析问题，请稍候...";
-      renderEvidences([]);
-      renderGraph([], []);
-      normalizedSceneEl.textContent = "识别中...";
-      mappedTermsEl.textContent = "识别中...";
-      graphSummaryEl.textContent = "生成中...";
+      answerBoxEl.textContent = "分析中...";
 
       try {
         const res = await fetch("https://civil-aviation-kg-system.onrender.com/api/ask", {
@@ -263,38 +165,18 @@
           body: JSON.stringify({ question, top_k, final_n })
         });
 
-        const rawText = await res.text();
+        const data = await res.json();
 
-        if (!res.ok) {
-          answerBoxEl.textContent = `接口请求失败（${res.status}）\n\n${rawText}`;
-          normalizedSceneEl.textContent = "失败";
-          mappedTermsEl.textContent = "失败";
-          graphSummaryEl.textContent = "失败";
-          return;
-        }
+        answerBoxEl.textContent = data.answer;
+        normalizedSceneEl.textContent = data.normalized_question;
+        mappedTermsEl.textContent = mapTermsToText(data.mapped_terms);
+        graphSummaryEl.textContent = data.graph_summary;
 
-        const data = JSON.parse(rawText);
+        renderEvidences(data.evidences);
+        renderGraph(data.graph_nodes, data.graph_edges);
 
-        answerBoxEl.textContent = data.answer || "未生成回答";
-        normalizedSceneEl.textContent = data.normalized_question || "暂无";
-        mappedTermsEl.textContent = mapTermsToText(data.mapped_terms || data.standard_terms);
-        graphSummaryEl.textContent = data.graph_summary || "暂无";
-
-        const evidences = data.evidences || data.evidence || [];
-        renderEvidences(evidences);
-
-        const graphNodesData = data.graph_nodes || (data.graph ? data.graph.nodes : []) || [];
-        const graphEdgesData = data.graph_edges || (data.graph ? data.graph.edges : []) || [];
-        renderGraph(graphNodesData, graphEdgesData);
       } catch (err) {
-        answerBoxEl.textContent = "系统请求失败。\n\n" + (err?.message || String(err));
-        normalizedSceneEl.textContent = "失败";
-        mappedTermsEl.textContent = "失败";
-        graphSummaryEl.textContent = "失败";
-        console.error(err);
-      } finally {
-        runBtn.disabled = false;
-        runBtn.textContent = "开始分析";
+        answerBoxEl.textContent = "请求失败：" + err;
       }
     });
   </script>
