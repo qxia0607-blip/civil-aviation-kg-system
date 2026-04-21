@@ -48,6 +48,28 @@ def simple_similarity(text_a: str, text_b: str) -> float:
     return len(set_a & set_b) / len(set_a | set_b)
 
 
+def keyword_bonus(question: str, scene: dict[str, Any]) -> float:
+    bonus = 0.0
+    standard_term = scene.get("standard_term", "")
+    aliases = scene.get("aliases", [])
+    category = scene.get("category", "")
+    summary = scene.get("summary", "")
+
+    if standard_term and standard_term in question:
+        bonus += 0.35
+
+    for alias in aliases:
+        if alias and alias in question:
+            bonus += 0.18
+
+    for text in [category, summary]:
+        if text:
+            overlap = len(set(question) & set(text))
+            bonus += min(overlap * 0.005, 0.08)
+
+    return bonus
+
+
 def match_scene(question: str) -> dict[str, Any]:
     data = load_data().get("scenes", [])
     best_score = -1.0
@@ -60,7 +82,7 @@ def match_scene(question: str) -> dict[str, Any]:
             + scene.get("summary", "")
             + scene.get("category", "")
         )
-        score = simple_similarity(question, compare_text)
+        score = simple_similarity(question, compare_text) + keyword_bonus(question, scene)
         if score > best_score:
             best_score = score
             best_scene = scene
@@ -97,12 +119,17 @@ def retrieve_documents(
             question,
             scene.get("standard_term", ""),
             scene.get("summary", ""),
+            " ".join(scene.get("aliases", [])),
         ]
     )
 
     scored = []
     for d in docs:
-        score = simple_similarity(query_text, d.get("text", ""))
+        text = d.get("text", "")
+        title = d.get("title", "")
+        source = d.get("source", "")
+        mix_text = f"{title} {text} {source}"
+        score = simple_similarity(query_text, mix_text)
         scored.append(
             {
                 **d,
@@ -112,8 +139,12 @@ def retrieve_documents(
         )
 
     scored.sort(key=lambda x: x["vector_score"], reverse=True)
-    top_k = max(1, min(top_k, len(scored))) if scored else 0
-    final_n = max(1, min(final_n, len(scored))) if scored else 0
+
+    if not scored:
+        return []
+
+    top_k = max(1, min(top_k, len(scored)))
+    final_n = max(1, min(final_n, len(scored)))
     candidates = scored[:top_k]
     return candidates[:final_n]
 
@@ -161,10 +192,13 @@ def build_subgraph(
         if e.get("from") in selected_ids and e.get("to") in selected_ids
     ]
 
+    if not nodes:
+        nodes = all_nodes
+    if not edges:
+        edges = all_edges
     if not seed_terms:
         seed_terms = [standard_term] if standard_term else []
 
-    # 去重
     seed_terms = list(dict.fromkeys(seed_terms))
     return nodes, edges, seed_terms
 
