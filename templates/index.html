@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>民航应急知识图谱生成系统</title>
+  <link rel="stylesheet" href="/static/style.css" />
+  <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand-wrap">
+        <h1>民航应急知识图谱生成系统</h1>
+      </div>
+    </header>
+
+    <main class="page-grid">
+      <aside class="panel left-panel">
+        <div class="panel-title">应急问题输入</div>
+
+        <label class="field-label" for="questionInput">问题描述</label>
+        <textarea id="questionInput" placeholder="请输入应急问题，例如：飞机客舱出现烟雾应如何处置？"></textarea>
+
+        <div class="field-label small-gap">示例问题</div>
+        <div class="examples">
+          <button class="example-chip" type="button" onclick="fillExample(this)">客舱出现烟雾应如何处置？</button>
+          <button class="example-chip" type="button" onclick="fillExample(this)">起飞阶段发动机异常如何处理？</button>
+          <button class="example-chip" type="button" onclick="fillExample(this)">乘客突发疾病如何应对？</button>
+          <button class="example-chip" type="button" onclick="fillExample(this)">起落架无法放下怎么办？</button>
+          <button class="example-chip" type="button" onclick="fillExample(this)">飞机通讯中断如何处理？</button>
+        </div>
+
+        <div class="controls">
+          <div class="control-card">
+            <label for="topK">检索范围</label>
+            <input id="topK" type="number" value="10" min="1" max="20" />
+          </div>
+          <div class="control-card">
+            <label for="finalN">输出条数</label>
+            <input id="finalN" type="number" value="3" min="1" max="10" />
+          </div>
+        </div>
+
+        <button id="runBtn" class="primary-btn" type="button">开始分析</button>
+
+        <div class="meta-stack">
+          <div class="meta-card">
+            <div class="meta-title">识别场景</div>
+            <div id="normalizedScene" class="meta-content">暂无</div>
+          </div>
+          <div class="meta-card">
+            <div class="meta-title">关联术语</div>
+            <div id="mappedTerms" class="meta-content">暂无</div>
+          </div>
+          <div class="meta-card">
+            <div class="meta-title">图谱摘要</div>
+            <div id="graphSummary" class="meta-content">暂无</div>
+          </div>
+        </div>
+      </aside>
+
+      <section class="panel center-panel">
+        <div class="panel-title">应急处置建议</div>
+        <div id="answerBox" class="content-scroll answer-box">
+          请输入问题并点击“开始分析”。
+        </div>
+      </section>
+    </main>
+
+    <section class="panel graph-panel">
+      <div class="panel-title">
+        <span>关联信息网络</span>
+        <div class="toolbar">
+          <button type="button" class="ghost-btn" onclick="fitGraph()">适配视图</button>
+          <button type="button" class="ghost-btn" onclick="zoomIn()">放大</button>
+          <button type="button" class="ghost-btn" onclick="zoomOut()">缩小</button>
+        </div>
+      </div>
+      <div id="graphContainer"></div>
+    </section>
+
+    <section class="panel evidence-panel">
+      <div class="panel-title">参考依据</div>
+      <div id="evidenceBox" class="content-scroll evidence-box">
+        暂无参考依据。
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const answerBoxEl = document.getElementById("answerBox");
+    const evidenceBoxEl = document.getElementById("evidenceBox");
+    const questionInputEl = document.getElementById("questionInput");
+    const topKEl = document.getElementById("topK");
+    const finalNEl = document.getElementById("finalN");
+    const normalizedSceneEl = document.getElementById("normalizedScene");
+    const mappedTermsEl = document.getElementById("mappedTerms");
+    const graphSummaryEl = document.getElementById("graphSummary");
+    const runBtn = document.getElementById("runBtn");
+
+    let network = null;
+    let graphNodes = new vis.DataSet([]);
+    let graphEdges = new vis.DataSet([]);
+
+    function fillExample(el) {
+      questionInputEl.value = el.innerText;
+    }
+
+    function renderEvidences(items) {
+      evidenceBoxEl.innerHTML = "";
+      if (!items || items.length === 0) {
+        evidenceBoxEl.innerHTML = '<div class="empty-state">暂无参考依据。</div>';
+        return;
+      }
+
+      items.forEach((item, idx) => {
+        const wrap = document.createElement("div");
+        wrap.className = "evidence-card";
+        wrap.innerHTML = `
+          <div class="evidence-source">依据 ${idx + 1}${item.source ? " · " + item.source : ""}</div>
+          <div class="evidence-text">${item.text || ""}</div>
+        `;
+        evidenceBoxEl.appendChild(wrap);
+      });
+    }
+
+    function renderGraph(nodes, edges) {
+      const container = document.getElementById("graphContainer");
+
+      const safeNodes = Array.isArray(nodes) ? nodes : [];
+      const safeEdges = Array.isArray(edges) ? edges : [];
+
+      graphNodes.clear();
+      graphEdges.clear();
+
+      graphNodes.add(
+        safeNodes.map((node, idx) => ({
+          id: node.id || `n_${idx}`,
+          label: node.label || "未命名节点",
+          group: node.group || "default",
+          title: node.title || node.label || "未命名节点",
+          shape: "dot",
+          size: node.size || 18,
+          font: {
+            color: "#0f172a",
+            face: "-apple-system, BlinkMacSystemFont, Helvetica Neue, Arial",
+            size: 15
+          }
+        }))
+      );
+
+      graphEdges.add(
+        safeEdges.map((edge, idx) => ({
+          id: edge.id || `e_${idx}`,
+          from: edge.from,
+          to: edge.to,
+          label: edge.label || "",
+          arrows: "to",
+          width: 1.6,
+          smooth: { type: "dynamic" },
+          color: { color: "rgba(71, 85, 105, 0.36)", highlight: "#2563eb" },
+          font: { color: "#64748b", size: 12, align: "middle" }
+        }))
+      );
+
+      const data = { nodes: graphNodes, edges: graphEdges };
+      const options = {
+        autoResize: true,
+        physics: {
+          enabled: true,
+          barnesHut: {
+            gravitationalConstant: -4800,
+            springLength: 140,
+            springConstant: 0.03,
+            damping: 0.18
+          },
+          stabilization: { iterations: 180 }
+        },
+        interaction: {
+          dragNodes: true,
+          dragView: true,
+          zoomView: true,
+          hover: true,
+          keyboard: true
+        },
+        groups: {
+          event: { color: { background: "#dbeafe", border: "#60a5fa" } },
+          step: { color: { background: "#dcfce7", border: "#4ade80" } },
+          role: { color: { background: "#fef3c7", border: "#f59e0b" } },
+          device: { color: { background: "#ede9fe", border: "#8b5cf6" } },
+          rule: { color: { background: "#ffe4e6", border: "#fb7185" } },
+          risk: { color: { background: "#fef9c3", border: "#eab308" } },
+          default: { color: { background: "#e2e8f0", border: "#94a3b8" } }
+        }
+      };
+
+      if (network) {
+        network.destroy();
+      }
+
+      network = new vis.Network(container, data, options);
+
+      network.once("stabilizationIterationsDone", () => {
+        network.fit({ animation: { duration: 400, easingFunction: "easeInOutQuad" } });
+      });
+    }
+
+    function fitGraph() {
+      if (network) network.fit({ animation: true });
+    }
+
+    function zoomIn() {
+      if (!network) return;
+      const scale = network.getScale();
+      network.moveTo({ scale: scale * 1.15, animation: true });
+    }
+
+    function zoomOut() {
+      if (!network) return;
+      const scale = network.getScale();
+      network.moveTo({ scale: scale * 0.85, animation: true });
+    }
+
+    function mapTermsToText(value) {
+      if (!value) return "暂无";
+      if (Array.isArray(value)) return value.length ? value.join("、") : "暂无";
+      if (typeof value === "object") {
+        const arr = Object.values(value).flat().filter(Boolean);
+        return arr.length ? arr.join("、") : "暂无";
+      }
+      return String(value);
+    }
+
+    runBtn.addEventListener("click", async () => {
+      const question = questionInputEl.value.trim();
+      const top_k = Number(topKEl.value || 10);
+      const final_n = Number(finalNEl.value || 3);
+
+      if (!question) {
+        alert("请先输入问题");
+        return;
+      }
+
+      if (final_n > top_k) {
+        alert("输出条数不能大于检索范围");
+        return;
+      }
+
+      runBtn.disabled = true;
+      runBtn.textContent = "分析中...";
+      answerBoxEl.textContent = "正在分析问题，请稍候...";
+      renderEvidences([]);
+      renderGraph([], []);
+      normalizedSceneEl.textContent = "识别中...";
+      mappedTermsEl.textContent = "识别中...";
+      graphSummaryEl.textContent = "生成中...";
+
+      try {
+        const res = await fetch("/api/ask", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question, top_k, final_n })
+        });
+
+        const rawText = await res.text();
+
+        if (!res.ok) {
+          answerBoxEl.textContent = `接口请求失败（${res.status}）\n\n${rawText}`;
+          normalizedSceneEl.textContent = "失败";
+          mappedTermsEl.textContent = "失败";
+          graphSummaryEl.textContent = "失败";
+          return;
+        }
+
+        const data = JSON.parse(rawText);
+
+        answerBoxEl.textContent = data.answer || "未生成回答";
+        normalizedSceneEl.textContent = data.normalized_question || "暂无";
+        mappedTermsEl.textContent = mapTermsToText(data.mapped_terms || data.standard_terms);
+        graphSummaryEl.textContent = data.graph_summary || "暂无";
+
+        const evidences = data.evidences || data.evidence || [];
+        renderEvidences(evidences);
+
+        const graphNodesData = data.graph_nodes || (data.graph ? data.graph.nodes : []) || [];
+        const graphEdgesData = data.graph_edges || (data.graph ? data.graph.edges : []) || [];
+        renderGraph(graphNodesData, graphEdgesData);
+      } catch (err) {
+        answerBoxEl.textContent = "系统请求失败。\n\n" + (err?.message || String(err));
+        normalizedSceneEl.textContent = "失败";
+        mappedTermsEl.textContent = "失败";
+        graphSummaryEl.textContent = "失败";
+        console.error(err);
+      } finally {
+        runBtn.disabled = false;
+        runBtn.textContent = "开始分析";
+      }
+    });
+  </script>
+</body>
+</html>

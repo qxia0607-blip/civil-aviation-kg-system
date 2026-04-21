@@ -1,0 +1,180 @@
+{
+  "scenes": [
+    {
+      "id": "cabin_smoke",
+      "standard_term": "客舱烟雾事件",
+      "category": "客舱应急",
+      "aliases": ["飞机冒烟", "客舱冒烟", "机舱冒烟", "烟雾", "机舱有烟", "客舱出现烟雾", "飞机里有烟", "冒烟了怎么办"],
+      "summary": "客舱烟雾事件通常需要快速识别烟源、通知机组、组织初步处置并评估备降。",
+      "steps": [
+        "迅速确认烟雾位置、强度及是否伴随火源迹象。",
+        "立即通知机长与乘务长，启动客舱应急沟通程序。",
+        "按程序使用灭火器、防烟面罩等设备进行初步控制。",
+        "组织旅客保持秩序，必要时准备紧急下降或备降。"
+      ],
+      "risks": ["烟雾蔓延导致可见度下降", "乘客恐慌", "隐蔽火源扩大"],
+      "notes": ["避免盲目开启舱门或设备隔舱", "优先保障乘客疏导和机组信息同步"],
+      "roles": ["乘务员", "乘务长", "机长"],
+      "devices": ["灭火器", "防烟面罩", "便携式氧气瓶"],
+      "rules": ["客舱应急处置程序", "客舱烟雾与火情检查单"],
+      "documents": [
+        {
+          "title": "客舱烟雾事件处置流程",
+          "source": "民航客舱应急手册 第3章",
+          "text": "当客舱出现烟雾时，应迅速确认烟源位置并立即报告机长。乘务员应依照客舱烟雾与火情检查单实施处置，必要时使用灭火器和防烟面罩，并持续监测旅客状态与烟雾变化。"
+        },
+        {
+          "title": "烟雾蔓延下的旅客组织",
+          "source": "客舱安全运行规范 第2节",
+          "text": "烟雾蔓延场景下，客舱乘务员需要保持通道畅通、稳定旅客情绪、明确指令并准备备降后的疏散协同。"
+        },
+        {
+          "title": "备降评估与信息上报",
+          "source": "运行控制程序 第5章",
+          "text": "机长在收到客舱烟雾报告后，应结合烟雾强度、火源可控性和飞行阶段评估是否实施备降，并向运行控制部门和空管进行必要信息通报。"
+        }
+      ],
+      "graph": {
+        "nodes": [
+          {"id": "evt_smoke", "label": "客舱烟雾事件", "group": "event", "size": 30},
+          {"id": "cause_fire", "label": "隐蔽火源", "group": "risk"},
+          {"id": "step_locate", "label": "识别烟源", "group": "step"},
+          {"id": "step_report", "label": "通知机组", "group": "step"},
+          {"id": "step_control", "label": "初步控制", "group": "step"},
+          {"id": "role_cc", "label": "乘务员", "group": "role"},
+          {"id": "role_cap", "label": "机长", "group": "role"},
+          {"id": "device_ext", "label": "灭火器", "group": "device"},
+          {"id": "device_mask", "label": "防烟面罩", "group": "device"},
+          {"id": "rule_smoke", "label": "客舱烟雾与火情检查单", "group": "rule"}
+        ],
+        "edges": [
+          {"from": "evt_smoke", "to": "step_locate", "label": "包含"},
+          {"from": "evt_smoke", "to": "step_report", "label": "包含"},
+          {"from": "evt_smoke", "to": "step_control", "label": "包含"},
+          {"from": "evt_smoke", "to": "cause_fire", "label": "风险"},
+          {"from": "role_cc", "to": "step_locate", "label": "负责"},
+          {"from": "role_cap", "to": "step_report", "label": "决策"},
+          {"from": "step_control", "to": "device_ext", "label": "使用"},
+          {"from": "step_control", "to": "device_mask", "label": "使用"},
+          {"from": "evt_smoke", "to": "rule_smoke", "label": "依据"}
+        ]
+      }
+    },
+    {
+      "id": "engine_failure_takeoff",
+      "standard_term": "起飞阶段发动机失效",
+      "category": "飞行运行应急",
+      "aliases": ["起飞没动力", "起飞异常", "发动机坏了", "发动机失效", "飞机起飞时没推力", "起飞的时候发动机不对劲"],
+      "summary": "起飞阶段发动机失效需要结合飞行阶段和决断速度判断中断起飞或继续起飞，并快速执行检查单。",
+      "steps": [
+        "确认推力异常、告警信息和飞行阶段。",
+        "依据V1速度判断中断起飞或继续起飞。",
+        "按发动机失效检查单执行相关程序。",
+        "评估返场或备降条件，并做好客舱协同。"
+      ],
+      "risks": ["跑道冲出风险", "操纵负荷增加", "复合故障扩散"],
+      "notes": ["避免重复错误操作", "保持驾驶舱口令与职责分工明确"],
+      "roles": ["机长", "副驾驶"],
+      "devices": ["发动机监控系统", "飞行检查单"],
+      "rules": ["发动机失效检查单", "起飞中断程序"],
+      "documents": [
+        {
+          "title": "起飞阶段发动机失效判断",
+          "source": "飞行运行手册 第6章",
+          "text": "在起飞阶段发生发动机失效时，机组应首先依据推力异常和警告信息确认故障，并结合V1速度判断是否中断起飞。"
+        },
+        {
+          "title": "发动机失效后的机组分工",
+          "source": "驾驶舱协同程序 第4节",
+          "text": "机长与副驾驶应保持明确口令与职责分工，一人操纵飞机，一人执行检查单并进行通信与系统监控。"
+        },
+        {
+          "title": "返场与备降评估",
+          "source": "运行控制手册 第7章",
+          "text": "发动机失效后，机组应结合气象、剩余性能、跑道条件和机场保障能力，对返场或备降进行快速评估。"
+        }
+      ],
+      "graph": {
+        "nodes": [
+          {"id": "evt_eng", "label": "起飞阶段发动机失效", "group": "event", "size": 30},
+          {"id": "step_confirm", "label": "确认故障", "group": "step"},
+          {"id": "step_v1", "label": "判断V1速度", "group": "step"},
+          {"id": "step_check", "label": "执行检查单", "group": "step"},
+          {"id": "role_capt", "label": "机长", "group": "role"},
+          {"id": "role_fo", "label": "副驾驶", "group": "role"},
+          {"id": "device_ecam", "label": "发动机监控系统", "group": "device"},
+          {"id": "rule_eng", "label": "发动机失效检查单", "group": "rule"},
+          {"id": "risk_runway", "label": "跑道冲出风险", "group": "risk"}
+        ],
+        "edges": [
+          {"from": "evt_eng", "to": "step_confirm", "label": "包含"},
+          {"from": "evt_eng", "to": "step_v1", "label": "包含"},
+          {"from": "evt_eng", "to": "step_check", "label": "包含"},
+          {"from": "evt_eng", "to": "risk_runway", "label": "风险"},
+          {"from": "role_capt", "to": "step_v1", "label": "决策"},
+          {"from": "role_fo", "to": "step_check", "label": "配合"},
+          {"from": "step_confirm", "to": "device_ecam", "label": "参考"},
+          {"from": "evt_eng", "to": "rule_eng", "label": "依据"}
+        ]
+      }
+    },
+    {
+      "id": "passenger_medical",
+      "standard_term": "旅客突发疾病事件",
+      "category": "客舱服务应急",
+      "aliases": ["乘客晕倒", "旅客晕倒", "乘客突然不舒服", "旅客突发疾病", "有人昏倒", "飞机上有人胸痛"],
+      "summary": "旅客突发疾病事件需要快速评估症状、广播寻医、使用机上急救资源并辅助机长做运行决策。",
+      "steps": [
+        "初步评估旅客意识、呼吸和主要症状。",
+        "通过客舱广播寻求医护协助。",
+        "按程序使用机上急救箱、氧气瓶等设备。",
+        "向机长汇报病情并协助评估是否备降。"
+      ],
+      "risks": ["病情快速恶化", "客舱秩序受影响"],
+      "notes": ["持续记录症状变化", "避免围观造成二次风险"],
+      "roles": ["乘务长", "乘务员", "医护协助人员"],
+      "devices": ["急救箱", "氧气瓶"],
+      "rules": ["机上急救程序", "旅客医疗事件报告流程"],
+      "documents": [
+        {
+          "title": "机上急救初步处置",
+          "source": "客舱服务手册 第8章",
+          "text": "旅客出现晕厥、胸痛或呼吸困难时，乘务员应立即进行初步评估，必要时启动机上急救程序并广播寻医。"
+        },
+        {
+          "title": "病情信息上报与决策协同",
+          "source": "运行协同程序 第3节",
+          "text": "乘务长应及时向机长汇报病情发展、处置措施及医护协助情况，为机长评估是否备降提供依据。"
+        },
+        {
+          "title": "机上急救设备使用规范",
+          "source": "急救设备管理规范 第2章",
+          "text": "机上急救箱和便携式氧气瓶应由受训人员按程序使用，并记录设备使用时间、剂量及旅客反应。"
+        }
+      ],
+      "graph": {
+        "nodes": [
+          {"id": "evt_med", "label": "旅客突发疾病事件", "group": "event", "size": 30},
+          {"id": "step_eval", "label": "初步评估", "group": "step"},
+          {"id": "step_call", "label": "广播寻医", "group": "step"},
+          {"id": "step_aid", "label": "实施急救", "group": "step"},
+          {"id": "role_purser", "label": "乘务长", "group": "role"},
+          {"id": "role_med", "label": "医护协助人员", "group": "role"},
+          {"id": "device_kit", "label": "急救箱", "group": "device"},
+          {"id": "device_o2", "label": "氧气瓶", "group": "device"},
+          {"id": "rule_med", "label": "机上急救程序", "group": "rule"}
+        ],
+        "edges": [
+          {"from": "evt_med", "to": "step_eval", "label": "包含"},
+          {"from": "evt_med", "to": "step_call", "label": "包含"},
+          {"from": "evt_med", "to": "step_aid", "label": "包含"},
+          {"from": "role_purser", "to": "step_eval", "label": "负责"},
+          {"from": "role_med", "to": "step_aid", "label": "协助"},
+          {"from": "step_aid", "to": "device_kit", "label": "使用"},
+          {"from": "step_aid", "to": "device_o2", "label": "使用"},
+          {"from": "evt_med", "to": "rule_med", "label": "依据"}
+        ]
+      }
+    }
+  ]
+}
