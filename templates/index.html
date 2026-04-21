@@ -257,7 +257,7 @@
       graphSummaryEl.textContent = "生成中...";
 
       try {
-        const res = await {fetch("https://civil-aviation-kg-system.onrender.com/api/ask", {
+        const res = await fetch("https://civil-aviation-kg-system.onrender.com/api/ask", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ question, top_k, final_n })
